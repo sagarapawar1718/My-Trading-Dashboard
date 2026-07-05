@@ -1,0 +1,43 @@
+import streamlit as st
+import yfinance as yf
+import pandas as pd
+
+st.set_page_config(layout="wide")
+st.title("📈 Stock Trade Summary Dashboard")
+
+# युजर इनपुट
+ticker = st.sidebar.text_input("स्टॉक सिम्बॉल टाका (उदा. RELIANCE.NS, TCS.NS)", "TCS.NS")
+timeframe = st.sidebar.selectbox("Timeframe निवडा", ["1m", "3m", "5m", "15m", "1h", "1d", "1wk"])
+
+# डेटा फेंचिंग फंक्शन
+@st.cache_data(ttl=60) # १ मिनिटाला डेटा अपडेट होईल
+def fetch_data(symbol, period):
+    stock = yf.Ticker(symbol)
+    df = stock.history(period="1mo", interval=period)
+    return df
+
+data = fetch_data(ticker, timeframe)
+
+# साधे टेक्निकल ॲनालिसिस (उदा. SMA 20 आणि SMA 50)
+data['SMA20'] = data['Close'].rolling(window=20).mean()
+data['SMA50'] = data['Close'].rolling(window=50).mean()
+
+last_price = data['Close'].iloc[-1]
+last_sma20 = data['SMA20'].iloc[-1]
+
+# ॲनालिसिस लॉजिक
+if last_price > last_sma20 * 1.02:
+    status = "🔥 Strong"
+elif last_price > last_sma20:
+    status = "📈 Neutral-Strong"
+elif last_price < last_sma20 * 0.98:
+    status = "❄️ Weak"
+else:
+    status = "⚖️ Neutral"
+
+# डॅशबोर्डवर दाखवा
+col1, col2 = st.columns(2)
+col1.metric("Current Status", status)
+col2.metric("Last Price", f"₹ {last_price:.2f}")
+
+st.line_chart(data[['Close', 'SMA20', 'SMA50']])
